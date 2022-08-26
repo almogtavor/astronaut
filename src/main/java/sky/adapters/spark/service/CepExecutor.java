@@ -11,6 +11,7 @@ import org.apache.spark.sql.catalyst.expressions.EqualTo;
 import org.apache.spark.sql.catalyst.plans.logical.Filter;
 import org.apache.spark.sql.catalyst.plans.logical.Project;
 import org.apache.spark.sql.execution.*;
+import org.apache.spark.sql.execution.debug.package$;
 import org.apache.spark.sql.types.DataTypes;
 import org.apache.spark.sql.types.StructField;
 import org.apache.spark.sql.types.StructType;
@@ -63,16 +64,22 @@ public class CepExecutor {
         // SQL can be run over a temporary view created using DataFrames
         List<String> sqlStatements = List.of(
                 "SELECT * FROM people WHERE name=\"Ou\" OR age<31 OR age>50",
-                "SELECT * FROM people WHERE name=\"Bob\"",
+                "SELECT * FROM people WHERE name!=\"Bob\"",
                 "SELECT * FROM people WHERE (name=\"Bob\" AND age>21) OR (age<21 OR age>41)",
                 "SELECT * FROM people WHERE name=\"Bob\" AND age>21 OR age<21 OR age>41",
                 "SELECT * FROM people WHERE name!=\"Bob\" AND age>50"
+                // todo: add a case when example
         );
 
         // this part should run for each document
         for (var statement : sqlStatements) {
             List<String> subStatements = getSubStatements(statement);
+            //org.apache.spark.sql.execution.debug.DebugExec.
             Dataset<Row> results = spark.sql(statement);
+            results.show();
+            // ref: https://mallikarjuna_g.gitbooks.io/spark/content/spark-sql-debugging-execution.html
+            // ref: https://books.japila.pl/spark-sql-internals/debugging-query-execution/#demo
+            package$.MODULE$.DebugQuery(results).debug();
 //            if (results.count() == 0) {
 //                List<String> blamedStatements = findBlamedStatements(results);
 //            }
