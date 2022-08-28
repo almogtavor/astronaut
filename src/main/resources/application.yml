@@ -1,3 +1,10 @@
 spring:
   main:
     web-application-type: none
+astronaut:
+  debug-mode: "ON_FAILURE"
+queues:
+  - sql-statement: SELECT * FROM meteor WHERE name="Ou" AND (age<31 OR age>50)
+    debug-query:
+      debugging-accuracy-level: "FIND_KEY_STATEMENT"
+      debug-depth-level: "LEAF"

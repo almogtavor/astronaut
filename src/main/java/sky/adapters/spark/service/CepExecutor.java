@@ -7,7 +7,7 @@ import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Row;
 import org.apache.spark.sql.RowFactory;
 import org.apache.spark.sql.SparkSession;
-import org.apache.spark.sql.catalyst.expressions.EqualTo;
+import org.apache.spark.sql.catalyst.expressions.*;
 import org.apache.spark.sql.catalyst.plans.logical.Filter;
 import org.apache.spark.sql.catalyst.plans.logical.Project;
 import org.apache.spark.sql.execution.*;
@@ -16,6 +16,12 @@ import org.apache.spark.sql.types.DataTypes;
 import org.apache.spark.sql.types.StructField;
 import org.apache.spark.sql.types.StructType;
 import org.springframework.stereotype.Service;
+import scala.Option;
+import sky.configuration.properties.AstronautProperties;
+import sky.configuration.properties.DebugDepthLevel;
+import sky.configuration.properties.DebuggingAccuracyLevel;
+import sky.configuration.properties.QueuesProperties;
+import sky.model.DebugResult;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -24,6 +30,9 @@ import java.util.List;
 @AllArgsConstructor
 public class CepExecutor {
     private SparkSession spark;
+    private AstronautProperties astronautProperties;
+    private QueuesProperties queuesProperties;
+    private QueriesInvestigator queriesInvestigator;
 
     public void executeSqlStatements() {
         // $example on:programmatic_schema$
@@ -59,16 +68,18 @@ public class CepExecutor {
         // Creates a temporary view using the DataFrame
         Dataset<Row> limit = peopleDataFrame.limit(1);
 //        limit.show();
-        limit.createOrReplaceTempView("people");
+        limit.createOrReplaceTempView("meteor");
 
-        // SQL can be run over a temporary view created using DataFrames
         List<String> sqlStatements = List.of(
-                "SELECT * FROM people WHERE name=\"Ou\" OR age<31 OR age>50",
-                "SELECT * FROM people WHERE name!=\"Bob\"",
-                "SELECT * FROM people WHERE (name=\"Bob\" AND age>21) OR (age<21 OR age>41)",
-                "SELECT * FROM people WHERE name=\"Bob\" AND age>21 OR age<21 OR age>41",
-                "SELECT * FROM people WHERE name!=\"Bob\" AND age>50"
+                "SELECT * FROM meteor WHERE name=\"Ou\" AND (age<31 OR age>50)",
+                "SELECT * FROM meteor WHERE name=\"Ou\" OR age<31 OR age>50",
+                "SELECT * FROM meteor WHERE name!=\"Bob\"",
+                "SELECT * FROM meteor WHERE name=\"Bob\"",
+                "SELECT * FROM meteor WHERE (name=\"Bob\" AND age>21) OR (age<21 OR age>41)",
+                "SELECT * FROM meteor WHERE name=\"Bob\" AND age>21 OR age<21 OR age>41",
+                "SELECT * FROM meteor WHERE name!=\"Bob\" AND age>50"
                 // todo: add a case when example
+                // todo: add an is not null & is null example
         );
 
         // this part should run for each document
@@ -84,48 +95,24 @@ public class CepExecutor {
 //                List<String> blamedStatements = findBlamedStatements(results);
 //            }
             QueryExecution queryExecution = results.queryExecution();
-            if (queryExecution.analyzed() instanceof Project) {
-                Project project = (Project) queryExecution.analyzed();
-                if (project.child() instanceof Filter) {
-                    Filter filter = (Filter) project.child();
-                    if (filter.condition() instanceof EqualTo) {
-                        EqualTo equalTo = (EqualTo) filter.condition();
-                        System.out.println("The query was: " + equalTo.sql() + " and the resolvation output is: " + equalTo.resolved());
-                        peopleDataFrame.sqlContext().sql(equalTo.sql()).show();
+            switch (queryExecution.analyzed()) {
+                case Project project -> {
+                    switch (project.child()) {
+                        case Filter filter -> {
+                            List<DebugResult> debugResults = new ArrayList<>();
+                            queriesInvestigator.investigateQueryExecution(new QueryInvestigation(debugResults,
+                                    peopleDataFrame,
+                                    astronautProperties.getDebugMode(),
+                                    DebuggingAccuracyLevel.FIND_KEY_STATEMENT,
+                                    DebugDepthLevel.LEAF),
+                                    filter.condition());
+                        }
+                        default -> System.out.println("unexpected");
                     }
                 }
+                default -> System.out.println("CepExecutor.executeSqlStatements");
             }
-//            System.out.println("Send to X by " + statement);
-//            results.show(false);
-//            System.out.println("extended:");
-//            results.explain(true);
-//            System.out.println("ExtendedMode:");
-//            results.explain(ExtendedMode.name());
-//            System.out.println("CostMode:");
-//            results.explain(CostMode.name());
-//            System.out.println("FormattedMode:");
-//            results.explain(FormattedMode.name());
-//            System.out.println("CodegenMode:");
-//            results.explain(CodegenMode.name());
-//            System.out.println("SimpleMode:");
-//            results.explain(SimpleMode.name());
         }
-
-        // The results of SQL queries are DataFrames and support all the normal RDD operations
-        // The columns of a row in the result can be accessed by field index or by field name
-//        Dataset<String> namesDS = results.map(
-//                (MapFunction<Row, String>) row -> "Name: " + row.getString(0),
-//                Encoders.STRING());
-//        namesDS.show();
-        // +-------------+
-        // |        value|
-        // +-------------+
-        // |Name: Michael|
-        // |   Name: Andy|
-        // | Name: Justin|
-        // +-------------+
-        // $example off:programmatic_schema$
-
     }
 
     private List<String> findBlamedStatements(Dataset<Row> results) {
