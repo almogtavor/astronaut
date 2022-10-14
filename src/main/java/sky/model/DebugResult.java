@@ -14,8 +14,8 @@ public class DebugResult {
 
     @Override
     public String toString() {
-        return "The reason for failure was that the sql: '" + sql + '\'' +
-               ", returned success status of: " + isSuccess +
+        return "The debug result was that the sql: '" + sql + '\'' +
+               ", returned success status of: " + (isSuccess ? "success" : "failure") +
                ", operator='" + operator + '\'' +
                ", rowValuesJson='" + rowValuesJson + '\'' +
                ", isLeafStatement='" + isLeafStatement + '\'' +

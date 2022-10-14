@@ -1,10 +1,87 @@
 spring:
+  application:
+    name: astronaut
   main:
     web-application-type: none
+  kafka:
+    consumer-env:
+      topic: input-explode-1
+      bootstrap-servers:
+        - localhost:9093
+      consumer:
+        auto-offset-reset: earliest
+    producers-env:
+      my-queue1:
+        topic: output-topic
+        bootstrap-servers:
+          - localhost:9093
+      my-queue2:
+        topic: output-topic2
+        bootstrap-servers:
+          - localhost:9093
+      output-explode:
+        topic: output-explode
+        bootstrap-servers:
+          - localhost:9093
 astronaut:
-  debug-mode: "ON_FAILURE"
+  debug-mode: ON_SUCCESS
+  debug-enabled: false # Since debugging isn't supported with EXPLOTIONs yet
+  runner:
+    technology: reactor
 queues:
-  - sql-statement: SELECT * FROM meteor WHERE name="Ou" AND (age<31 OR age>50)
-    debug-query:
-      debugging-accuracy-level: "FIND_KEY_STATEMENT"
-      debug-depth-level: "LEAF"
+  - sql-query: >-
+      SELECT * FROM meteor
+      WHERE hopId="Ou" AND (createdDate<31 OR createdDate>50)
+    query-name: my-query1
+    queue-name: my-queue1
+    queue-technology: "KAFKA"
+    debugging-accuracy-level: "FIND_KEY_STATEMENT"
+    debug-depth-level: "LEAF"
+  - sql-query: SELECT * FROM meteor WHERE hopId="Ou" OR createdDate<31 OR createdDate>50
+    query-name: my-query2
+    queue-name: my-queue1
+    queue-technology: "KAFKA"
+    debugging-accuracy-level: "FIND_KEY_STATEMENT"
+    debug-depth-level: "LEAF"
+  - sql-query: SELECT * FROM meteor WHERE hopId!="Bob"
+    query-name: my-query3
+    queue-name: my-queue1
+    queue-technology: "KAFKA"
+    debugging-accuracy-level: "FIND_KEY_STATEMENT"
+    debug-depth-level: "LEAF"
+  - sql-query: SELECT * FROM meteor WHERE hopId="Bob"
+    query-name: my-query4
+    queue-name: my-queue2
+    queue-technology: "KAFKA"
+    debugging-accuracy-level: "FIND_KEY_STATEMENT"
+    debug-depth-level: "LEAF"
+  - sql-query: SELECT * FROM meteor WHERE (name="Bob" AND createdDate>21) OR (createdDate<21 OR createdDate>41)
+    query-name: my-query5
+    queue-name: my-queue2
+    queue-technology: "KAFKA"
+    debugging-accuracy-level: "FIND_KEY_STATEMENT"
+    debug-depth-level: "LEAF"
+  - sql-query: SELECT * FROM meteor WHERE hopId="Bob" AND createdDate>21 OR createdDate<21 OR createdDate>41
+    query-name: my-query6
+    queue-name: my-queue2
+    queue-technology: "KAFKA"
+    debugging-accuracy-level: "FIND_KEY_STATEMENT"
+    debug-depth-level: "LEAF"
+  - sql-query: SELECT * FROM meteor WHERE hopId!="Bob" AND createdDate>50
+    query-name: my-query7
+    queue-name: my-queue1
+    queue-technology: "KAFKA"
+    debugging-accuracy-level: "FIND_KEY_STATEMENT"
+    debug-depth-level: "LEAF"
+  - sql-query: >-
+      SELECT file.fileId as key, itemId, coolId, hopId, createdDate, file.*
+      FROM (
+          SELECT *, EXPLODE(files) AS file FROM meteor)
+      WHERE file.itemType!="Image" AND coolId="47189473982148932194"
+    query-name: my-query8
+    queue-name: output-explode
+    queue-technology: "KAFKA"
+    debugging-accuracy-level: "FIND_KEY_STATEMENT"
+    debug-depth-level: "LEAF"
+# TODO: add a case when example
+# TODO: add an is not null & is null example
