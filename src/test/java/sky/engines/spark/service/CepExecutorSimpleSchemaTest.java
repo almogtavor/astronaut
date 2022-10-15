@@ -28,7 +28,7 @@ import sky.configuration.debug.DebuggingAccuracyLevel;
 import sky.model.DebugResult;
 
 @ExtendWith(SparkExtension.class)
-class CepExecutorTest {
+class CepExecutorSimpleSchemaTest {
     @SparkSessionField public SparkSession spark;
     @JavaSparkContextField public JavaSparkContext sparkContext;
     private StructType schema;
@@ -40,9 +40,9 @@ class CepExecutorTest {
                 DataTypes.createStructField("name", DataTypes.StringType, true),
                 DataTypes.createStructField("age", DataTypes.StringType, true),
                 DataTypes.createStructField("job", DataTypes.StringType, true)));
-        List<Row> nums = new ArrayList<>();
-        nums.add(RowFactory.create("George","30","Developer"));
-        dataFrame = spark.createDataFrame(nums, schema);
+        List<Row> rows = new ArrayList<>();
+        rows.add(RowFactory.create("George","30","Developer"));
+        dataFrame = spark.createDataFrame(rows, schema);
         dataFrame.createOrReplaceTempView("meteor");
     }
 
