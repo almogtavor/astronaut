@@ -19,27 +19,29 @@ public class ReactorSparkCepWrapper {
     private SparkSession spark;
     private SparkCepExecutor cepExecutor;
 
-    public Mono<List<Message<String>>> wrapMessagesSqlExecutionWithReactiveStreams(List<Message<String>> messages) {
+    public Mono<List<Message<String>>> executeSqlStatements(List<Message<String>> messages, String tableName) {
         try {
             var df = spark.read()
                     .json(spark.createDataset(messages.stream().map(Message::getPayload).toList(), Encoders.STRING()));
-            cepExecutor.executeSqlStatements(df, SinkType.BATCH);
+            df.createOrReplaceTempView(tableName);
+            cepExecutor.executeSqlStatements(SinkType.SPARK_BATCH_METHOD);
             return Mono.just(messages);
         } catch (Exception e) {
             log.error("An unhandled error occurred during SQL statement execution", e);
             return Mono.empty();
         }
     }
-    public Mono<Message<String>> wrapMessageSqlExecutionWithReactiveStreams(Message<String> message) {
+
+    public Mono<Message<String>> executeSqlStatements(Message<String> message, String tableName) {
         try {
             var df = spark.read()
                     .json(spark.createDataset(List.of(message.getPayload()), Encoders.STRING()));
-            cepExecutor.executeSqlStatements(df, SinkType.BATCH);
+            df.createOrReplaceTempView(tableName);
+            cepExecutor.executeSqlStatements(SinkType.SPARK_BATCH_METHOD);
             return Mono.just(message);
         } catch (Exception e) {
             log.error("An unhandled error occurred during SQL statement execution", e);
             return Mono.empty();
         }
     }
-
 }

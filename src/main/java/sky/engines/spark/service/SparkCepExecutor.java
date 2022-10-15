@@ -29,12 +29,10 @@ public class SparkCepExecutor {
     private final QueriesInvestigator queriesInvestigator;
     private final SparkQueuesPublisher sparkQueuesPublisher;
 
-    public void executeSqlStatements(Dataset<Row> df, SinkType sinkType) {
-        df.createOrReplaceTempView("meteor");
-
+    public void executeSqlStatements(SinkType sinkType) {
         for (var queryProperties : queriesProperties) {
             Dataset<Row> results = spark.sql(queryProperties.getSqlQuery());
-            results.show();
+            results.show(false);
 
             executeQueryDebuggingProcess(queryProperties, results);
             results = sparkQueuesPublisher.prepareResultsForPublishing(queryProperties, results);

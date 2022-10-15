@@ -5,7 +5,8 @@ spring:
     web-application-type: none
   kafka:
     consumer-env:
-      topic: input-explode-1
+      topic: input
+      table-name: meteor
       bootstrap-servers:
         - localhost:9093
       consumer:
@@ -30,14 +31,19 @@ astronaut:
     technology: reactor
 queues:
   - sql-query: >-
-      SELECT * FROM meteor
-      WHERE hopId="Ou" AND (createdDate<31 OR createdDate>50)
+      SELECT * FROM meteor 
+      WHERE hopId="Ou" 
+      AND (to_timestamp(createdDate)<(current_date - INTERVAL 31 MINUTE)
+        OR to_timestamp(createdDate)>(current_date - INTERVAL 50 MINUTE))
     query-name: my-query1
     queue-name: my-queue1
     queue-technology: "KAFKA"
     debugging-accuracy-level: "FIND_KEY_STATEMENT"
     debug-depth-level: "LEAF"
-  - sql-query: SELECT * FROM meteor WHERE hopId="Ou" OR createdDate<31 OR createdDate>50
+  - sql-query: >-
+      SELECT * FROM meteor WHERE hopId="Ou" 
+      OR to_timestamp(createdDate)<(current_date - INTERVAL 31 MINUTE) 
+      OR to_timestamp(createdDate)>(current_date - INTERVAL 50 MINUTE)
     query-name: my-query2
     queue-name: my-queue1
     queue-technology: "KAFKA"
@@ -55,26 +61,41 @@ queues:
     queue-technology: "KAFKA"
     debugging-accuracy-level: "FIND_KEY_STATEMENT"
     debug-depth-level: "LEAF"
-  - sql-query: SELECT * FROM meteor WHERE (name="Bob" AND createdDate>21) OR (createdDate<21 OR createdDate>41)
+  - sql-query: >-
+      SELECT * FROM meteor WHERE (hopId="Bob" AND to_timestamp(createdDate)>(current_date - INTERVAL 20 MINUTE)) 
+      OR (to_timestamp(createdDate)<(current_date - INTERVAL 21 MINUTE) OR to_timestamp(createdDate)>(current_date - INTERVAL 41 MINUTE))
     query-name: my-query5
     queue-name: my-queue2
     queue-technology: "KAFKA"
     debugging-accuracy-level: "FIND_KEY_STATEMENT"
     debug-depth-level: "LEAF"
-  - sql-query: SELECT * FROM meteor WHERE hopId="Bob" AND createdDate>21 OR createdDate<21 OR createdDate>41
+  - sql-query: >-
+      SELECT * FROM meteor WHERE hopId="Bob" AND to_timestamp(createdDate)<(current_date - INTERVAL 21 MINUTE) OR 
+      to_timestamp(createdDate)>(current_date - INTERVAL 41 MINUTE)
     query-name: my-query6
     queue-name: my-queue2
     queue-technology: "KAFKA"
     debugging-accuracy-level: "FIND_KEY_STATEMENT"
     debug-depth-level: "LEAF"
-  - sql-query: SELECT * FROM meteor WHERE hopId!="Bob" AND createdDate>50
+  - sql-query: SELECT * FROM meteor WHERE hopId!="Bob" AND to_timestamp(createdDate)>(current_date - INTERVAL 50 MINUTE)
     query-name: my-query7
     queue-name: my-queue1
     queue-technology: "KAFKA"
     debugging-accuracy-level: "FIND_KEY_STATEMENT"
     debug-depth-level: "LEAF"
   - sql-query: >-
-      SELECT file.fileId as key, itemId, coolId, hopId, createdDate, file.*
+      SELECT distinct(parentDocument.id), parentDocument.itemId as key, *
+      FROM meteor parentDocument
+      JOIN (SELECT file.* FROM (SELECT EXPLODE(files) AS file FROM meteor)) childFile
+      ON parentDocument.itemId = childFile.rootId
+      WHERE childFile.itemType!="Image" AND childFile.text="SomeTEXT3"
+    query-name: my-query8
+    queue-name: output-explode
+    queue-technology: "KAFKA"
+    debugging-accuracy-level: "FIND_KEY_STATEMENT"
+    debug-depth-level: "LEAF"
+  - sql-query: >-
+      SELECT file.fileId as key, itemId, coolId, hopId, to_timestamp(createdDate), file.*
       FROM (
           SELECT *, EXPLODE(files) AS file FROM meteor)
       WHERE file.itemType!="Image" AND coolId="47189473982148932194"

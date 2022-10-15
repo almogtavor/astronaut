@@ -13,6 +13,7 @@ import org.springframework.messaging.support.MessageBuilder;
 import org.springframework.stereotype.Component;
 import reactor.kafka.receiver.KafkaReceiver;
 import reactor.kafka.receiver.ReceiverOffset;
+import sky.configuration.properties.KafkaConsumerProperties;
 
 import java.util.Map;
 import java.util.Objects;
@@ -25,6 +26,7 @@ public class ReactorProcessor implements ApplicationRunner {
     public static final String RECEIVER_OFFSET_HEADER = "receiverOffset";
     private final ReactorSparkCepWrapper reactorSparkWrapper;
     private final KafkaReceiver<String, String> kafkaReceiver;
+    private final KafkaConsumerProperties kafkaConsumerProperties;
     private final ObjectMapper objectMapper;
 
     @Override
@@ -34,7 +36,7 @@ public class ReactorProcessor implements ApplicationRunner {
         kafkaReceiver.receive()
                 .map(msg -> MessageBuilder.createMessage(msg.value(),
                         new MessageHeaders(Map.of(RECEIVER_OFFSET_HEADER, msg.receiverOffset()))))
-                .flatMap(reactorSparkWrapper::wrapMessageSqlExecutionWithReactiveStreams)
+                .flatMap((Message<String> message) -> reactorSparkWrapper.executeSqlStatements(message, kafkaConsumerProperties.getTableName()))
                 .mapNotNull(this::acknowledgeMessages)
                 .subscribe();
     }

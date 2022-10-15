@@ -18,6 +18,7 @@ import java.util.Date;
 public class TargetFile {
     private String fileId;
     private String parentId;
+    private String rootId;
     private String itemType;
     private Date receptionTime;
     private String text;

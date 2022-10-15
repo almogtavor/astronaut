@@ -8,6 +8,7 @@ import org.apache.spark.sql.streaming.StreamingQuery;
 import org.apache.spark.sql.streaming.StreamingQueryException;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
+import scala.reflect.io.File;
 import sky.configuration.properties.KafkaProducersProperties;
 import sky.configuration.properties.QueryProperties;
 import sky.configuration.properties.QueueTechnology;
@@ -41,8 +42,9 @@ public class SparkQueuesPublisher {
     public void publishMessagesToQueues(SinkType sinkType, QueryProperties queryProperties, Dataset<Row> kafkaDataset) {
         if (queryProperties.getQueueTechnology().equals(QueueTechnology.KAFKA)) {
             KafkaProducersProperties.KafkaProducerProperties kafkaProducerProperties = kafkaProducersProperties.get(queryProperties.getQueueName());
-            if (sinkType.equals(SinkType.BATCH)) {
+            if (sinkType.equals(SinkType.SPARK_BATCH_METHOD)) {
                 kafkaDataset
+                        .selectExpr("CAST(value AS BINARY) value")
                         .write()
                         .format("kafka")
                         .option("kafka.bootstrap.servers", String.join(",", kafkaProducerProperties.getBootstrapServers()))
@@ -51,10 +53,12 @@ public class SparkQueuesPublisher {
             } else {
                 try {
                     StreamingQuery ds = kafkaDataset
+                            .selectExpr("CAST(value AS BINARY) value")
                             .writeStream()
                             .format("kafka")
                             .option("kafka.bootstrap.servers", String.join(",", kafkaProducerProperties.getBootstrapServers()))
                             .option("topic", kafkaProducerProperties.getTopic())
+                            .option("checkpointLocation", System.getProperty("user.home") + File.pathSeparator() + ".checkpoint")
                             .start();
                     ds.awaitTermination();
                 } catch (TimeoutException | StreamingQueryException e) {

@@ -14,4 +14,5 @@ import org.springframework.context.annotation.Primary;
 @Data
 public class KafkaConsumerProperties extends KafkaProperties {
     private String topic;
+    private String tableName;
 }

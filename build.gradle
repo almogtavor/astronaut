@@ -13,7 +13,6 @@ repositories {
 
 configurations {
     all {
-//        exclude group: 'org.springframework.boot', module: 'spring-boot-starter-logging'
         exclude group: 'org.apache.logging.log4j', module: 'log4j-slf4j-impl'
         exclude group: 'org.springframework.boot', module: 'spring-boot-starter-web'
     }
@@ -23,8 +22,8 @@ configurations {
 dependencies {
     implementation("org.apache.spark:spark-core_2.13:3.3.0")
     implementation("org.apache.spark:spark-sql_2.13:3.3.0")
-//    implementation("org.apache.spark:spark-streaming-kafka-0-10_2.13:3.3.0")
-//    implementation("org.apache.spark:spark-sql-kafka-0-10_2.13:3.3.0")
+    implementation("org.apache.spark:spark-streaming-kafka-0-10_2.13:3.3.0")
+    implementation("org.apache.spark:spark-sql-kafka-0-10_2.13:3.3.0")
 //    compileOnly("org.apache.spark:spark-streaming_2.13:3.3.0")
 //    TODO: check for support for scala 2_13:
 //      testImplementation("com.holdenkarau:spark-testing-base_2.12:3.3.0_1.2.0")

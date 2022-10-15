@@ -1,6 +1,6 @@
 package sky.configuration.properties;
 
 public enum SinkType {
-    BATCH,
-    STREAMING
+    SPARK_BATCH_METHOD,
+    SPARK_STREAMING_METHOD
 }

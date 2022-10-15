@@ -1,7 +1,9 @@
 package sky.configuration.properties;
 
+import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 import lombok.experimental.FieldNameConstants;
 import sky.configuration.debug.DebugDepthLevel;
 import sky.configuration.debug.DebuggingAccuracyLevel;
@@ -9,6 +11,8 @@ import sky.configuration.debug.DebuggingAccuracyLevel;
 @Builder
 @Data
 @FieldNameConstants
+@AllArgsConstructor
+@NoArgsConstructor
 public class QueryProperties {
     private String queryName;
     /**

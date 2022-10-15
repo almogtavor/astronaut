@@ -3,12 +3,9 @@ package sky.process.spark.streaming;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.spark.sql.Dataset;
-import org.apache.spark.sql.Row;
-import org.apache.spark.sql.SparkSession;
+import org.apache.spark.sql.*;
+import org.apache.spark.sql.catalyst.encoders.ExpressionEncoder;
 import org.apache.spark.sql.types.DataTypes;
-import org.apache.spark.sql.types.StructField;
-import org.apache.spark.sql.types.StructType;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -16,6 +13,9 @@ import org.springframework.stereotype.Component;
 import sky.configuration.properties.KafkaConsumerProperties;
 import sky.configuration.properties.SinkType;
 import sky.engines.spark.service.SparkCepExecutor;
+import sky.model.TargetSon;
+
+import java.util.Arrays;
 
 import static org.apache.spark.sql.functions.*;
 
@@ -32,11 +32,8 @@ public class SparkStreamingProcessor implements ApplicationRunner {
     @Override
     public void run(ApplicationArguments args) throws Exception {
         log.info("Initializing Spark Structured Streaming application runner.");
-        StructType structType = new StructType(new StructField[]{
-                new StructField("name", DataTypes.StringType, false, null),
-                new StructField("age", DataTypes.IntegerType, false, null),
-                new StructField("job", DataTypes.IntegerType, false, null)
-        });
+        var schema = ExpressionEncoder.javaBean(TargetSon.class).schema();
+        System.out.println(schema.json());
         Dataset<Row> df = spark
                 .readStream()
                 .format("kafka")
@@ -44,9 +41,23 @@ public class SparkStreamingProcessor implements ApplicationRunner {
                 .option("subscribe", kafkaConsumerProperties.getTopic())
                 .option("startingOffsets", kafkaConsumerProperties.getConsumer().getAutoOffsetReset())
                 .load();
-        df = df.select(from_json(col("value"), structType),
-                col("kafka_key")
-                );
-        cepExecutor.executeSqlStatements(df, SinkType.STREAMING);
+        df.createOrReplaceTempView("meteor");
+        df = df
+                .select(Arrays.stream(df.columns()).map(c -> col(c).cast(DataTypes.StringType).alias(c)).toArray(Column[]::new))
+                .select(from_json(col("value"), schema).alias("values"), col("key"), col("timestamp"));
+        df = df.select("values.*", "key", "timestamp");
+        df = df.withColumnRenamed("createdDate", "createdDateTemp");
+        df = df.withColumn("createdDate", to_timestamp(
+                concat_ws("/", col("createdDateTemp.year"), col("createdDateTemp.month"), col("createdDateTemp.date"), col("createdDateTemp.hours"), col("createdDateTemp.minutes"), col("createdDateTemp.seconds")),
+                "yyyy/MM/dd/HH/mm/SSS"));
+        df = df.drop("createdDateTemp");
+        df.printSchema();
+        df
+                .writeStream()
+                .format("console")
+                .option("truncate","false")
+                .start();
+        df.createOrReplaceTempView(kafkaConsumerProperties.getTableName());
+        cepExecutor.executeSqlStatements(SinkType.SPARK_STREAMING_METHOD);
     }
 }
